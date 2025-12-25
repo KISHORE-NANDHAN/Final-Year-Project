@@ -8,19 +8,22 @@ communication_bp = Blueprint("communication", __name__)
 
 @communication_bp.route("/evaluate", methods=["POST"])
 def evaluate_communication():
-    audio_file = request.files.get("audio")
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
 
-    if not audio_file:
-        return jsonify({"error": "Audio file missing"}), 400
+    audio_file = request.files['audio']
+    # Get the text the user WAS supposed to read (sent from frontend)
+    reference_text = request.form.get("reference_text", "") 
 
     # 1. Speech to Text
     transcript = convert_speech_to_text(audio_file)
+    print(f"Transcript: {transcript}") # Debugging
 
-    # 2. NLP Text Analysis
+    # 2. Text Analysis (Grammar)
     text_metrics = analyze_text(transcript)
 
-    # 3. Pronunciation Analysis
-    pronunciation_score = analyze_pronunciation(audio_file)
+    # 3. Pronunciation (Accuracy vs Reference)
+    pronunciation_score = analyze_pronunciation(transcript, reference_text)
 
     # 4. Final Score
     final_result = generate_score(

@@ -1,8 +1,9 @@
 flask
 flask-cors
 speechrecognition
-pyaudio
+pydub
 nltk
 spacy
-pyAudioAnalysis
+language-tool-python
+jiwer
 numpy

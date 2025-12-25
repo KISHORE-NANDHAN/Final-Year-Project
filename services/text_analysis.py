@@ -1,30 +1,25 @@
-import spacy
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-import nltk
+import language_tool_python
 
-nltk.download('punkt')
-nltk.download('stopwords')
-
-nlp = spacy.load("en_core_web_sm")
+# Initialize tool once to save time (caches the model)
+tool = language_tool_python.LanguageTool('en-US')
 
 def analyze_text(text):
-    doc = nlp(text)
+    if not text:
+        return {"word_count": 0, "grammar_score": 0, "feedback": "No speech detected"}
 
-    word_count = len(word_tokenize(text))
-    sentence_count = len(list(doc.sents))
-    stop_words = set(stopwords.words("english"))
+    # 1. Word Count
+    word_count = len(text.split())
 
-    meaningful_words = [
-        word.text for word in doc
-        if word.text.lower() not in stop_words and word.is_alpha
-    ]
+    # 2. Real Grammar Check
+    matches = tool.check(text)
+    error_count = len(matches)
 
-    grammar_score = 80 if sentence_count > 0 else 40
+    # 3. Calculate Score
+    # Deduct 5 points per error from 100, min score 0
+    grammar_score = max(0, 100 - (error_count * 5))
 
     return {
         "word_count": word_count,
-        "sentence_count": sentence_count,
-        "meaningful_words": len(meaningful_words),
-        "grammar_score": grammar_score
+        "grammar_score": grammar_score,
+        "error_count": error_count
     }

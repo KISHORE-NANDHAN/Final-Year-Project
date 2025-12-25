@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Listening & Speaking</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Top Tabs -->
+<div class="tabs">
+  <span class="active">🎧 Listening & Speaking</span>
+  <span>✍️ Fill in the Blanks</span>
+  <span>📘 Paragraph Reading</span>
+  <span>🎤 Topic Speaking</span>
+</div>
+
+<hr />
+
+<!-- Main Container -->
+<div class="container">
+
+  <h1>Listening & Speaking</h1>
+
+  <!-- Question -->
+  <div class="question">
+    <strong>Q1: Listen and repeat</strong>
+    <p>
+      To develop good communication skills, you need to listen carefully to the other person.
+    </p>
+  </div>
+
+  <!-- Audio Box -->
+  <div class="audio-box">
+    <div class="audio-icon">🔊</div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button id="startBtn" class="start">START</button>
+    <span class="device">SELECT DEVICE</span>
+  </div>
+
+  <!-- Recording Status -->
+  <div id="recordingStatus" class="recording hidden">
+    🎙️ Recording... Speak now!
+  </div>
+
+  <!-- Stop Button -->
+  <button id="stopBtn" class="stop hidden">⬛ Stop Recording</button>
+
+  <!-- Result -->
+  <div id="result" class="result hidden"></div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

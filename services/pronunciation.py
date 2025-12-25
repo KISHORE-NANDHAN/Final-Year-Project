@@ -1,20 +1,21 @@
-from pyAudioAnalysis import audioBasicIO
-from pyAudioAnalysis import ShortTermFeatures
-import numpy as np
-import tempfile
+import jiwer
 
-def analyze_pronunciation(audio_file):
-    temp = tempfile.NamedTemporaryFile(delete=False)
-    audio_file.save(temp.name)
+def analyze_pronunciation(transcript, reference_text):
+    if not transcript or not reference_text:
+        return 0.0
 
-    [fs, x] = audioBasicIO.read_audio_file(temp.name)
-    x = audioBasicIO.stereo_to_mono(x)
+    # Normalize text (remove punctuation, lowercase)
+    ref_norm = reference_text.lower().replace(".", "").strip()
+    hyp_norm = transcript.lower().replace(".", "").strip()
 
-    features, _ = ShortTermFeatures.feature_extraction(
-        x, fs, 0.05 * fs, 0.025 * fs
-    )
-
-    energy = np.mean(features[1])
-    pronunciation_score = min(100, max(50, energy * 100))
-
-    return round(pronunciation_score, 2)
+    try:
+        # Calculate Word Error Rate
+        wer = jiwer.wer(ref_norm, hyp_norm)
+        
+        # Convert to Accuracy Score (0 to 100)
+        # 1.0 WER means 0% accuracy. 0.0 WER means 100% accuracy.
+        accuracy = max(0, 1 - wer) * 100
+        
+        return round(accuracy, 2)
+    except:
+        return 0.0
