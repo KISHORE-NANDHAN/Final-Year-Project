@@ -3,6 +3,12 @@ from pydub import AudioSegment
 import io
 import os
 
+# --- ADD THESE LINES ---
+# Explicitly set the path to the ffmpeg executable in your project folder
+AudioSegment.converter = os.path.join(os.getcwd(), "ffmpeg.exe")
+AudioSegment.ffprobe = os.path.join(os.getcwd(), "ffprobe.exe")
+# -----------------------
+
 def convert_speech_to_text(audio_file):
     recognizer = sr.Recognizer()
 

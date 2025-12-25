@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Listening & Speaking</title>
+  <title>Listening & Speaking Simulator</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Top Tabs -->
 <div class="tabs">
   <span class="active">🎧 Listening & Speaking</span>
   <span>✍️ Fill in the Blanks</span>
@@ -17,39 +16,33 @@
 
 <hr />
 
-<!-- Main Container -->
 <div class="container">
 
   <h1>Listening & Speaking</h1>
 
-  <!-- Question -->
   <div class="question">
     <strong>Q1: Listen and repeat</strong>
-    <p>
-      To develop good communication skills, you need to listen carefully to the other person.
-    </p>
+    <p id="referenceText">To develop good communication skills, you need to listen carefully to the other person.</p>
   </div>
 
-  <!-- Audio Box -->
   <div class="audio-box">
-    <div class="audio-icon">🔊</div>
+    <canvas id="visualizer"></canvas>
   </div>
 
-  <!-- Controls -->
   <div class="controls">
-    <button id="startBtn" class="start">START</button>
-    <span class="device">SELECT DEVICE</span>
+    <button id="startBtn" class="start">🔴 START RECORDING</button>
+    
+    <select id="audioSource">
+        <option value="">Default Microphone</option>
+    </select>
   </div>
 
-  <!-- Recording Status -->
   <div id="recordingStatus" class="recording hidden">
-    🎙️ Recording... Speak now!
+    🎙️ Recording... <span id="timer">00:00</span>
   </div>
 
-  <!-- Stop Button -->
   <button id="stopBtn" class="stop hidden">⬛ Stop Recording</button>
 
-  <!-- Result -->
   <div id="result" class="result hidden"></div>
 
 </div>

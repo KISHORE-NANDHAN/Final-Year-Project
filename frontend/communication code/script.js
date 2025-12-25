@@ -1,101 +1,180 @@
+let mediaRecorder;
+let audioChunks = [];
+let audioContext;
+let analyser;
+let source;
+let animationId;
+let startTime;
+let timerInterval;
 
-  let mediaRecorder;
-  let audioChunks = [];
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const recordingStatus = document.getElementById("recordingStatus");
+const resultBox = document.getElementById("result");
+const audioInputSelect = document.getElementById("audioSource");
+const canvas = document.getElementById("visualizer");
+const canvasCtx = canvas.getContext("2d");
+const timerDisplay = document.getElementById("timer");
 
-  const startBtn = document.getElementById("startBtn");
-  const stopBtn = document.getElementById("stopBtn");
-  const recordingStatus = document.getElementById("recordingStatus");
-  const resultBox = document.getElementById("result");
+// 1. Load Audio Devices on Startup
+async function getConnectedDevices() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        audioInputSelect.innerHTML = '<option value="">Default Microphone</option>';
+        
+        devices.forEach(device => {
+            if (device.kind === 'audioinput') {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Microphone ${audioInputSelect.length + 1}`;
+                audioInputSelect.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Error opening audio devices.', error);
+    }
+}
+getConnectedDevices();
 
-  // 1. Start Recording
-  startBtn.onclick = async () => {
-    audioChunks = []; // Reset chunks
+// 2. Visualizer Function (Draws the Wave)
+function visualize(stream) {
+    if(!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    const draw = () => {
+        animationId = requestAnimationFrame(draw);
+        analyser.getByteTimeDomainData(dataArray);
+
+        canvasCtx.fillStyle = 'rgb(243, 244, 246)'; // Match background color
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = 'rgb(255, 77, 77)'; // Red wave color
+        canvasCtx.beginPath();
+
+        const sliceWidth = canvas.width * 1.0 / bufferLength;
+        let x = 0;
+
+        for(let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = v * canvas.height / 2;
+
+            if(i === 0) {
+                canvasCtx.moveTo(x, y);
+            } else {
+                canvasCtx.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+        }
+
+        canvasCtx.lineTo(canvas.width, canvas.height / 2);
+        canvasCtx.stroke();
+    };
+
+    draw();
+}
+
+// 3. Start Recording
+startBtn.onclick = async () => {
+    audioChunks = [];
+    const audioSource = audioInputSelect.value;
+    const constraints = {
+        audio: { deviceId: audioSource ? { exact: audioSource } : undefined }
+    };
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Start Visualizer
+        visualize(stream);
 
-      mediaRecorder.start();
+        // Start Recorder
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
 
-      // UI Updates
-      recordingStatus.classList.remove("hidden");
-      stopBtn.classList.remove("hidden");
-      startBtn.disabled = true;
-      startBtn.style.backgroundColor = "#ccc"; // Visual feedback
-      resultBox.classList.add("hidden");
+        // UI Updates
+        recordingStatus.classList.remove("hidden");
+        stopBtn.classList.remove("hidden");
+        startBtn.classList.add("hidden");
+        resultBox.classList.add("hidden");
 
-      mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
+        // Start Timer
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsedTime = Date.now() - startTime;
+            const seconds = Math.floor((elapsedTime / 1000) % 60);
+            const minutes = Math.floor((elapsedTime / 1000 / 60));
+            timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
 
     } catch (err) {
-      alert("Microphone access denied or not available!");
-      console.error(err);
+        alert("Error accessing microphone: " + err.message);
     }
-  };
+};
 
-  // 2. Stop Recording & Send to AI
-  stopBtn.onclick = async () => {
+// 4. Stop Recording & Send
+stopBtn.onclick = async () => {
     mediaRecorder.stop();
+    
+    // Stop Visualizer & Timer
+    cancelAnimationFrame(animationId);
+    clearInterval(timerInterval);
+    if(source) { source.disconnect(); }
     
     // UI Updates
     recordingStatus.classList.add("hidden");
     stopBtn.classList.add("hidden");
-    startBtn.disabled = false;
-    startBtn.style.backgroundColor = "#ff4d4d"; // Reset color
+    startBtn.classList.remove("hidden");
+    startBtn.innerText = "🔁 Record Again";
 
     mediaRecorder.onstop = async () => {
-      // Create Blob (Note: Browsers often record as WebM, but backend converts it)
-      const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+        const formData = new FormData();
+        
+        formData.append("audio", audioBlob, "response.wav");
+        
+        // Get text to compare
+        const referenceText = document.getElementById("referenceText").innerText;
+        formData.append("reference_text", referenceText);
 
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "response.wav");
+        resultBox.classList.remove("hidden");
+        resultBox.innerHTML = "<h3>⏳ Analyzing your speech...</h3>";
 
-      // --- CRITICAL MODIFICATION HERE ---
-      // We grab the text from the <p> tag inside .question
-      const questionText = document.querySelector(".question p").innerText;
-      formData.append("reference_text", questionText);
-      // ----------------------------------
+        try {
+            const response = await fetch("http://127.0.0.1:5000/api/communication/evaluate", {
+                method: "POST",
+                body: formData
+            });
 
-      resultBox.classList.remove("hidden");
-      resultBox.innerHTML = "⏳ Evaluating your response... (Checking Grammar & Pronunciation)";
+            if (!response.ok) throw new Error("Server Error");
 
-      try {
-        // Send to your Flask Backend
-        const response = await fetch("http://127.0.0.1:5000/api/communication/evaluate", {
-          method: "POST",
-          body: formData
-        });
+            const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+            // Render Final Report
+            resultBox.innerHTML = `
+                <div style="border-left: 5px solid #ff4d4d; padding-left: 15px;">
+                    <p><strong>🗣️ You said:</strong> "${data.transcript}"</p>
+                    <p><strong>✅ Accuracy:</strong> ${data.scores.pronunciation}%</p>
+                    <p><strong>📖 Grammar:</strong> ${data.scores.grammar}/100</p>
+                    <p><strong>💡 Feedback:</strong> ${data.feedback}</p>
+                </div>
+            `;
+        } catch (err) {
+            resultBox.innerHTML = "<p style='color:red'>❌ Error connecting to server. Is Flask running?</p>";
         }
-
-        const data = await response.json();
-
-        // Display Detailed Results
-        resultBox.innerHTML = `
-          <div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px;">
-            <strong>🗣️ You said:</strong> <span style="color: #333;">"${data.transcript}"</span>
-          </div>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-             <div style="background: #e3f2fd; padding: 10px; border-radius: 5px;">
-                <strong>🎯 Accuracy:</strong> ${data.scores.pronunciation}%
-             </div>
-             <div style="background: #e8f5e9; padding: 10px; border-radius: 5px;">
-                <strong>📖 Grammar Score:</strong> ${data.scores.grammar}/100
-             </div>
-          </div>
-
-          <div>
-             <strong>📝 Feedback:</strong><br>
-             ${data.feedback}
-          </div>
-        `;
-      } catch (err) {
-        console.error(err);
-        resultBox.innerHTML = `<span style="color: red;">❌ Error: Could not connect to AI server. Check if Flask is running.</span>`;
-      }
     };
-  };
+};
