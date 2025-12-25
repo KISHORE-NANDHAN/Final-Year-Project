@@ -1,0 +1,8 @@
+flask
+flask-cors
+speechrecognition
+pyaudio
+nltk
+spacy
+pyAudioAnalysis
+numpy
